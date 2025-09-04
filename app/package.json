@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@heisenware/storage": "^1.2.2",
+    "pino": "^9.9.1",
+    "vrpc": "^3.2.1"
+  }
+}
