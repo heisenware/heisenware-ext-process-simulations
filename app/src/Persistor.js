@@ -1,21 +1,22 @@
 const Storage = require('@heisenware/storage')
-const os = require('os')
-const path = require('path')
 const { VrpcAdapter } = require('vrpc')
 
 class Persistor {
-  constructor ({ agentInstance, dir, log = console }) {
+  constructor ({ agentInstance, log }) {
     this._agentInstance = agentInstance
-    this._dir = dir || path.join(os.tmpdir(), agentInstance._agent)
-    this._log = log
+    this._dir = `/shared/extensions/${agentInstance._agent
+      .toLocaleLowerCase()
+      .replace(/[^a-zA-Z0-9]/g, '-')}`
+    this._log = log.child({ subModule: 'Persistor' })
     this._storage = new Storage({ log, dir: this._dir })
     this._log.info(`Persisting to: ${this._dir}`)
   }
 
   async restore () {
     await this._init()
-    const ids = await this._storage.keys()
-    while (ids.length > 0) {
+    const ids = this._storage.keys()
+    let trial = 0
+    while (ids.length > 0 && trial++ < 10) {
       const id = ids.shift()
       const { className, args } = await this._storage.getItem(id)
       this._log.info(`Restoring persisted instance: ${id} (${className})`)
@@ -29,8 +30,22 @@ class Persistor {
         this._log.warn(
           `Failed to restore persisted instance: ${id} (${className}) because: ${err}`
         )
-        ids.push(id)
+        // never go full-speed on a while loop
+        await new Promise(resolve => setTimeout(resolve, 500))
+        if (id !== undefined) {
+          ids.push(id)
+        }
       }
+    }
+    try {
+      await Promise.all(
+        ids.map(id => {
+          this._log.warn(`Deleting broken instance ${id}`)
+          return this._storage.removeItem(id)
+        })
+      )
+    } catch (err) {
+      this._log.warn(`Failed deleting broken instances, because ${err.message}`)
     }
   }
 

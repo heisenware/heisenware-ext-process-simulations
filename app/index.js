@@ -1,15 +1,22 @@
 const { VrpcAgent, VrpcAdapter } = require('vrpc')
 const Persistor = require('./src/Persistor')
-const EnergySimulator = require('./src/EnergySimulator')
-const { domain, agent, username, password, broker } = require('./config')
+const { domain, username, password, broker } = require('./config')
 const pino = require('pino')
-
 const log = pino({ timestamp: pino.stdTimeFunctions.isoTime }).child({
   module: 'index'
 })
 
-// Register Konsole
+// ----------------------- ONLY EDIT HERE --------------------------------------
+
+const agent = 'Process Simulations'
+
+const EnergySimulator = require('./src/EnergySimulator')
 VrpcAdapter.register(EnergySimulator, { jsdocPath: './src/EnergySimulator.js' })
+
+const SiloSimulator = require('./src/SiloSimulator')
+VrpcAdapter.register(SiloSimulator, { jsdocPath: './src/SiloSimulator.js' })
+
+// -----------------------------------------------------------------------------
 
 async function main () {
   // Start vrpc-agent
@@ -26,9 +33,8 @@ async function main () {
 
   // Create persistor
   const persistor = new Persistor({
-    log: log.child({ subModule: 'Persistor' }),
-    agentInstance: vrpcAgent,
-    dir: '/shared/ext/heisenware-konsole'
+    log,
+    agentInstance: vrpcAgent
   })
 
   // Restore all persisted instances
